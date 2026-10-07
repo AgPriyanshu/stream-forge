@@ -1,0 +1,131 @@
+services:
+  apisix:
+    image: apache/apisix:3.19.0-debian
+    restart: unless-stopped
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml
+    depends_on:
+      - etcd
+    ports:
+      - "9080:9080"
+      - "9180:9180"
+      - "9091:9091"
+      - "9443:9443"
+    networks:
+      - apisix
+
+  postgrest:
+    image: postgrest/postgrest
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_SERVER_HOST: 0.0.0.0
+      PGRST_DB_URI: postgres://authenticator:authenticator_password@db:5432/app_db
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:3000
+      PGRST_DB_ANON_ROLE: web_anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - db
+    networks:
+      - apisix
+
+  db:
+    image: postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - "./pg/pgdata:/var/lib/postgresql"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d app_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - apisix
+
+  migrate:
+    build: ./api
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    volumes:
+      - ./api:/app
+      - /app/.venv
+    environment:
+      DATABASE_URL: postgresql+psycopg://app_user:password@db:5432/app_db
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - apisix
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    command:
+      ["fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - ./api:/app
+      # Keeps the image's Linux .venv instead of the host's macOS one.
+      - /app/.venv
+    environment:
+      DATABASE_URL: postgresql+psycopg://app_user:password@db:5432/app_db
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    networks:
+      - apisix
+
+  etcd:
+    image: bitnamilegacy/etcd:3.5.11
+    restart: unless-stopped
+    volumes:
+      - etcd_data:/bitnami/etcd
+    environment:
+      ETCD_ENABLE_V2: "true"
+      ALLOW_NONE_AUTHENTICATION: "yes"
+      ETCD_ADVERTISE_CLIENT_URLS: "http://etcd:2379"
+      ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379"
+    ports:
+      - "2379:2379"
+    networks:
+      - apisix
+
+  starrocks:
+    image: starrocks/allin1-ubuntu
+    restart: unless-stopped
+    ports:
+      - "9030:9030" # MySQL protocol, for clients.
+      - "8030:8030" # Frontend HTTP.
+      - "8040:8040" # Backend HTTP, for data loading.
+    volumes:
+      - starrocks_data:/data/deploy/starrocks
+    networks:
+      - apisix
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: kalo
+      RABBITMQ_DEFAULT_PASS: kalo
+    volumes:
+      - rabbit_mqdata:/usr/share/rabbitmq/data
+
+networks:
+  apisix:
+
+volumes:
+  etcd_data:
+  rabbit_mqdata:
+  starrocks_data:

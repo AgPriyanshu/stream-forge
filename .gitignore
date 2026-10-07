@@ -1,0 +1,58 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+.cache/
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+
+sample_docs/
+
+# Claude Code — personal, per-machine
+.claude/settings.local.json
+
+# Design canvas — generated from design/canvas/gen.py + the seed helper (2.7 MB)
+design/canvas/traverse-ui.html
+
+# pnpm content-addressable store, created locally by `pnpm config set store-dir`
+.pnpm-store/
+**/.pnpm-store/
+
+# S2.16 seeded corpus — `make seed` rebuilds these deterministically from
+# corpus/manifest.json (tracked); the fetched .txt and built .pdf are not.
+corpus/downloads/
+
+# S3.9 relation-extraction spike (api/notebooks/) fetches Pride and
+# Prejudice at run time and caches it alongside the script; the cache is
+# reproducible from the script, never corpus data to track.
+api/notebooks/.pride_and_prejudice_cache.txt
+.docker-nocreds/
+
+# S8.8 ablation runner output -- reproducible from scripts/run_ablation.py
+# against the live stack; eval/ablation_runs/latest.json (S8.10's README
+# input) and .ci-cache/ are generated, never source to track.
+eval/ablation_runs/
+.ci-cache/
+
+# S9.4 local self-signed TLS cert for `make up-prod` verification only — a
+# real deploy uses Let's Encrypt/ACME (plans/sprint-9/HANDOFF.md), never this
+# generated pair.
+docker/nginx/certs/
+pg
+
+# APISIX config holds the admin key; copy apisix/config.yaml.example to apisix/config.yaml.
+apisix/config.yaml
