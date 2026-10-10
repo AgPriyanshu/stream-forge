@@ -56,3 +56,4 @@ pg
 
 # APISIX config holds the admin key; copy apisix/config.yaml.example to apisix/config.yaml.
 apisix/config.yaml
+api/files

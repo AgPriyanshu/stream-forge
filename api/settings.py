@@ -14,5 +14,10 @@ class Settings(BaseSettings):
     jwt_consumer_key: str = "streamforge"
     access_token_ttl_minutes: int = 15
 
+    # Message Queue.
+    mq_host: str = "rabbitmq"
+    mq_username: str = "kalo"
+    mq_password: str = "kalo"
+
 
 settings = Settings()

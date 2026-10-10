@@ -1,13 +1,20 @@
+import os
+from uuid import uuid4
+
+import aiofiles
+from authentication import get_token_data
 from db import get_session
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
-from models import Tenant, User
+from models import Document, Tenant, User
+from mq import publish
 from schemas import (
     LoginRequest,
     LoginResponse,
     SignupRequest,
     TenantCreateRequest,
     TenantResponse,
+    TokenData,
 )
 from security import DUMMY_HASH, create_access_token, hash_password, verify_password
 from sqlalchemy.exc import IntegrityError
@@ -99,8 +106,30 @@ async def login(body: LoginRequest, db_session: AsyncSession = Depends(get_sessi
 
 
 @api_router.post("/upload-document")
-async def upload_document(file: UploadFile):
-    pass
+async def upload_document(
+    file: UploadFile,
+    db_session: AsyncSession = Depends(get_session),
+    token: TokenData = Depends(get_token_data),
+):
+    storage_key = f"/app/files/{token.tenant_id}/{uuid4()}-{file.filename}"
+    os.makedirs(os.path.dirname(storage_key), exist_ok=True)
+    if file.filename:
+        document = Document(
+            filename=file.filename,
+            storage_key=storage_key,
+            owner_id=token.user_id,
+            tenant_id=token.tenant_id,
+        )
+
+        db_session.add(document)
+        await db_session.commit()
+
+        async with aiofiles.open(storage_key, "wb") as out_file:
+            while content := await file.read(1024):
+                await out_file.write(content)
+
+        publish("document uploaded")
+        return {"Result": "OK"}
 
 
 api_router.include_router(auth_router)

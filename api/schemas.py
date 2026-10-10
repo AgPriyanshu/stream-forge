@@ -26,3 +26,8 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     access_token: str
+
+
+class TokenData(BaseModel):
+    user_id: UUID
+    tenant_id: UUID

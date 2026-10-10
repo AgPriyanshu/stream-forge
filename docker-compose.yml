@@ -70,11 +70,10 @@ services:
       ["fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - ./api:/app
-      # Keeps the image's Linux .venv instead of the host's macOS one.
-      - /app/.venv
-    environment:
-      DATABASE_URL: postgresql+psycopg://app_user:password@db:5432/app_db
-      JWT_SECRET: ${JWT_SECRET}
+      - ./api/.env:/app/.env
+      - /app/.venv # Keeps the container's Linux .venv instead of the host's macOS one.
+    env_file:
+      - "./api/.env"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -121,6 +120,8 @@ services:
       RABBITMQ_DEFAULT_PASS: kalo
     volumes:
       - rabbit_mqdata:/usr/share/rabbitmq/data
+    networks:
+      - apisix
 
 networks:
   apisix:
